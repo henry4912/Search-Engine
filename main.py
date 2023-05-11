@@ -4,7 +4,6 @@ import json
 import re
 from nltk.stem import PorterStemmer
 
-
 def run():
     porterStem = PorterStemmer()
     idCounter = 1
@@ -51,6 +50,12 @@ def run():
                 idCounter += 1
 
     f = open("fixedJSONOutput.txt", "w+")
+
+    f.write('\nNumber of documents: ' + str(idCounter))
+    f.write('\nNumber of unique tokens: ' + str(len(frequencies)))
+    indexSize = sys.getsizeof(frequencies) / 1000
+    f.write("\nTotal size of index on disk: " + str(indexSize) + "KB")
+
     f.write('valid json: ' + str(validJsonCounter) + '\n')
     f.write('invalid json: ' + str(invalidJsonCounter))
     f.write('\nEvery bad json file: \n')
@@ -66,9 +71,7 @@ def run():
         f.write(link)
         f.write('\n')
     """
-    f.write('\nNumber of documents: ' + idCounter)
-    f.write('\nNumber of unique tokens: ' + str(len(frequencies)))
-
+  
     f.write('\n\n\n\nFrequencies Dictionary:\n')
     for keys, values in frequencies.items():
         f.write('token: ' + str(keys))
@@ -79,8 +82,7 @@ def run():
 
     # print(frequencies)
 
-    indexSize = sys.getsizeof(frequencies) / 1000
-    f.write("\nTotal size of index on disk: " + indexSize + "KB")
+   
 
 
 
