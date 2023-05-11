@@ -1,4 +1,4 @@
-import os
+import os,sys
 from bs4 import BeautifulSoup
 import json
 import re
@@ -7,6 +7,8 @@ from nltk.stem import PorterStemmer
 
 def run():
     porterStem = PorterStemmer()
+    idCounter = 1
+    docID = {}
     validJsonCounter = 0  # valid json files
     # validURL = [] #list of valid urls (the url in the json file)
     invalidJsonCounter = 0  # invalid json files
@@ -31,6 +33,7 @@ def run():
                     if key == 'url':
                         currURL = value
                         validJsonCounter = validJsonCounter + 1
+                        docID[currURL] = idCounter
                     if key == 'content':
                         soup = BeautifulSoup(value, 'xml')
                         tokens = tokenizer(soup.text)
@@ -38,12 +41,14 @@ def run():
                             t = porterStem.stem(t)
                             if t in frequencies.keys():
                                 if currURL in frequencies[t].keys():
-                                    frequencies[t][currURL] += 1
+                                    frequencies[t][idCounter] += 1
                                 else:
-                                    frequencies[t][currURL] = 1
+                                    frequencies[t][idCounter] = 1
                             else:
                                 frequencies[t] = {}
-                                frequencies[t][currURL] = 1
+                                frequencies[t][idCounter] = 1
+                    
+                idCounter += 1
 
     f = open("fixedJSONOutput.txt", "w+")
     f.write('valid json: ' + str(validJsonCounter) + '\n')
@@ -61,8 +66,8 @@ def run():
         f.write(link)
         f.write('\n')
     """
-
-    f.write('\nFrequencies Length: ' + str(len(frequencies)))
+    f.write('\nNumber of documents: ' + idCounter)
+    f.write('\nNumber of unique tokens: ' + str(len(frequencies)))
 
     f.write('\n\n\n\nFrequencies Dictionary:\n')
     for keys, values in frequencies.items():
@@ -73,6 +78,10 @@ def run():
         #    f.write('\n')
 
     # print(frequencies)
+
+    indexSize = sys.getsizeof(frequencies) / 1000
+    f.write("\nTotal size of index on disk: " + indexSize + "KB")
+
 
 
 def tokenizer(contents):
