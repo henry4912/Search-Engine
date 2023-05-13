@@ -1,3 +1,6 @@
+# Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen
+# Student IDs: 93547582, 27422353, 25602171, 56965805
+
 import os,sys
 from bs4 import BeautifulSoup
 import json
@@ -64,6 +67,8 @@ and size of the indexer
 '''
 def reportWrite(idCounter, validJsonCounter, frequencies):
     f = open("report.txt", "w+")
+    f.write('Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen\n')
+    f.write('Student IDs: 93547582, 27422353, 25602171, 56965805\n\n')
     f.write('Report:\n\n')
     f.write('\nNumber of documents: ' + str(idCounter))
     f.write('\nNumber of Indexed Documents: ' + str(validJsonCounter))
