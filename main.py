@@ -70,7 +70,7 @@ def reportWrite(idCounter, validJsonCounter, frequencies):
     f.write('Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen\n')
     f.write('Student IDs: 93547582, 27422353, 25602171, 56965805\n\n')
     f.write('Report:\n\n')
-    f.write('\nNumber of documents: ' + str(idCounter))
+    
     f.write('\nNumber of Indexed Documents: ' + str(validJsonCounter))
     f.write('\nNumber of unique tokens: ' + str(len(frequencies)))
     indexSize = sys.getsizeof(frequencies) / 1000
