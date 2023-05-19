@@ -28,7 +28,7 @@ def run():
     docID = {}
     validJsonCounter = 0  # valid json files
     frequencies = {}  # token frequencies
-    assignmentFolder = os.getcwd() + '/ANALYST'
+    assignmentFolder = os.getcwd() + '/DEV'
     for directories in os.listdir(assignmentFolder):
         subfolder = os.path.join(assignmentFolder, directories)
         for file in os.listdir(os.path.join(assignmentFolder, directories)):
