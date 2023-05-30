@@ -174,19 +174,70 @@ def writeToFile(index, writeCount):
 def mergeFiles(bitIndexes):
     openFiles = []
     files = []
-    iterators = []
+    bitIndex = {}
+    finalIndex = {}
+
     for i in range(len(bitIndexes)):
         files.append('cs121-disk' + str(i) + '.json')
     try:
         for f in files:
             openFiles.append(open(f, 'r'))
-        merge = mergeDictionaries(bitIndexes)  # dont know which file its in then
-        # finish merge
+        # merge = mergeDictionaries(bitIndexes) # dont know which file its in then
+
+        # merges all files into 1 file with duplicate tokens
+        with open('cs121-disk-duplicates.json', 'w+') as c:
+            currBit = 0
+            for f in openFiles:
+                for b in bitIndexes:
+                    for k, v in b.items():
+
+                        if k in bitIndex.keys():
+                            bitIndex[k].append(currBit)
+                        else:
+                            bitIndex[k] = [v]
+
+                        f.seek(v)
+                        j = json.loads(f.readline())
+                        json.dump(j, c)
+                        f.write('\n')
+                        currBit += len(str(j)) + 2
+            c.close()
+
+        # write to final file with no duplicates and token dicts all merged
+        # add tf-idf
+        with open('cs121-disk-final.json', 'w+') as final:
+            with open('cs121-disk-duplicates.json', 'r') as c:
+                currBit = 0
+                for k, v in bitIndex.items():
+                    finalIndex[k] = currBit
+                    if len(v) > 1:
+                        c.seek(v[0])
+                        t = json.loads(c.readline())
+                        for i in v[1:]:
+                            c.seek(i)
+                            t.update(json.loads(c.readline()))
+                        json.dump(t, final)
+                        f.write('\n')
+                    else:
+                        c.seek(v[0])
+                        t = json.loads(c.readline())
+                        json.dump(t, final)
+                        f.write('\n')
+
+                    currBit += len(str(t)) + 2
+
+                c.close()
+            final.close()
+
+        # merge into 1 file with dupes and use mergeDictionaries to have duplicate
+        # tokens append list with bit location and merge tokens from those bit locations
+        # into a final file
+
     finally:
         for f in openFiles:
             f.close()
 
-    return
+    return finalIndex
 
 
 def mergeDictionaries(dicts):
@@ -229,4 +280,3 @@ def reportWriteM2(entry, results):
 
 if __name__ == '__main__':
     run()
-
