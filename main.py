@@ -26,12 +26,20 @@ def run():
     porterStem = PorterStemmer()
     idCounter = 1
     docID = {}
+    fileCount = 0  # counts number of files before writing to disk
+    bitIndexes = []  # holds all the bit indexes for all files we wrote to
     validJsonCounter = 0  # valid json files
     frequencies = {}  # token frequencies
+
     assignmentFolder = os.getcwd() + '/DEV'
     for directories in os.listdir(assignmentFolder):
         subfolder = os.path.join(assignmentFolder, directories)
         for file in os.listdir(os.path.join(assignmentFolder, directories)):
+            if (fileCount == 10, 000):
+                fileCount = 0
+                ind = writeToFile(frequencies, len(bitIndexes))
+                bitIndexes.append(ind)
+                frequencies = {}
             with open(os.path.join(subfolder, file), 'r') as j:
                 jsonContentDictionary = json.load(j)
                 currURL = ''
@@ -53,8 +61,17 @@ def run():
                             else:
                                 frequencies[t] = {}
                                 frequencies[t][idCounter] = 1
+                    fileCount += 1
 
                 idCounter += 1
+
+    if len(frequencies) != 0:
+        ind = writeToFile(frequencies, len(bitIndexes))
+        bitIndexes.append(ind)
+
+    del frequencies
+    del fileCount
+
     reportWriteM1(idCounter, validJsonCounter, frequencies)
 
     search(frequencies, docID)
@@ -133,6 +150,54 @@ def findResults(text, freq, docID):
             results += str(url) + '\n\n'
 
     return results
+
+
+def writeToFile(index, writeCount):
+    fileName = 'cs121-disk' + str(writeCount) + '.json'
+    bitIndex = {}
+    index = dict(sorted(index.items()))
+
+    with open(fileName, 'w+') as f:
+        currBit = 0
+        for k, v in index.items():
+            bitIndex[k] = currBit
+            temp = {k: v}
+            json.dump(temp, f)
+            f.write('\n')
+            currBit += len(str(temp)) + 2
+        f.close()
+
+    return bitIndex
+
+
+# https://stackoverflow.com/questions/7945182/opening-multiple-an-unspecified-number-of-files-at-once-and-ensuring-they-are
+def mergeFiles(bitIndexes):
+    openFiles = []
+    files = []
+    iterators = []
+    for i in range(len(bitIndexes)):
+        files.append('cs121-disk' + str(i) + '.json')
+    try:
+        for f in files:
+            openFiles.append(open(f, 'r'))
+        merge = mergeDictionaries(bitIndexes)  # dont know which file its in then
+        # finish merge
+    finally:
+        for f in openFiles:
+            f.close()
+
+    return
+
+
+def mergeDictionaries(dicts):
+    mergedDict = {}
+    for d in dicts:
+        for k, v in d.items():
+            if k in mergedDict.keys():
+                mergedDict[k].append(v)
+            else:
+                mergedDict[k] = [v]
+    return mergedDict
 
 
 '''
