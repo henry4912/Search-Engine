@@ -7,6 +7,7 @@ import json
 import re
 from nltk.stem import PorterStemmer
 from tkinter import *
+import math
 
 '''
 Loops through the directories and files under DEV to read and parse the json files.
@@ -27,30 +28,36 @@ def run():
     idCounter = 1
     docID = {}
     fileCount = 0  # counts number of files before writing to disk
+    totalFileCount = 0  # counts number of total files for tf-idf
     bitIndexes = []  # holds all the bit indexes for all files we wrote to
     validJsonCounter = 0  # valid json files
     frequencies = {}  # token frequencies
 
-    assignmentFolder = os.getcwd() + '/DEV'
+    assignmentFolder = os.getcwd() + '/ANALYST'
     for directories in os.listdir(assignmentFolder):
         subfolder = os.path.join(assignmentFolder, directories)
         for file in os.listdir(os.path.join(assignmentFolder, directories)):
-            if (fileCount == 10, 000):
+
+            if (fileCount == 10000):
                 fileCount = 0
                 ind = writeToFile(frequencies, len(bitIndexes))
                 bitIndexes.append(ind)
                 frequencies = {}
+
             with open(os.path.join(subfolder, file), 'r') as j:
                 jsonContentDictionary = json.load(j)
                 currURL = ''
+
                 for key, value in jsonContentDictionary.items():
                     if key == 'url':
                         currURL = value
                         validJsonCounter = validJsonCounter + 1
                         docID[idCounter] = currURL
+
                     if key == 'content':
                         soup = BeautifulSoup(value, 'html.parser')
                         tokens = tokenizer(soup.text)
+
                         for t in tokens:
                             t = porterStem.stem(t)
                             if t in frequencies.keys():
@@ -61,13 +68,15 @@ def run():
                             else:
                                 frequencies[t] = {}
                                 frequencies[t][idCounter] = 1
-                    fileCount += 1
-
+                fileCount += 1
+                totalFileCount += 1
                 idCounter += 1
 
     if len(frequencies) != 0:
         ind = writeToFile(frequencies, len(bitIndexes))
         bitIndexes.append(ind)
+
+    mergeFiles(bitIndexes, totalFileCount)
 
     del frequencies
     del fileCount
@@ -171,7 +180,7 @@ def writeToFile(index, writeCount):
 
 
 # https://stackoverflow.com/questions/7945182/opening-multiple-an-unspecified-number-of-files-at-once-and-ensuring-they-are
-def mergeFiles(bitIndexes):
+def mergeFiles(bitIndexes, totalFileCount):
     openFiles = []
     files = []
     bitIndex = {}
