@@ -208,7 +208,7 @@ def mergeFiles(bitIndexes, totalFileCount):
                         f.seek(v)
                         j = json.loads(f.readline())
                         json.dump(j, c)
-                        f.write('\n')
+                        c.write('\n')
                         currBit += len(str(j)) + 2
             c.close()
 
@@ -226,12 +226,12 @@ def mergeFiles(bitIndexes, totalFileCount):
                             c.seek(i)
                             t.update(json.loads(c.readline()))
                         json.dump(t, final)
-                        f.write('\n')
+                        final.write('\n')
                     else:
                         c.seek(v[0])
                         t = json.loads(c.readline())
                         json.dump(t, final)
-                        f.write('\n')
+                        final.write('\n')
 
                     currBit += len(str(t)) + 2
 
