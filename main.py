@@ -38,7 +38,7 @@ def run():
         subfolder = os.path.join(assignmentFolder, directories)
         for file in os.listdir(os.path.join(assignmentFolder, directories)):
 
-            if (fileCount == 10000):
+            if (fileCount == 1500):
                 fileCount = 0
                 ind = writeToFile(frequencies, len(bitIndexes))
                 bitIndexes.append(ind)
@@ -52,7 +52,7 @@ def run():
                     if key == 'url':
                         currURL = value
                         validJsonCounter = validJsonCounter + 1
-                        docID[idCounter] = currURL
+                        docID[str(idCounter)] = currURL
 
                     if key == 'content':
                         soup = BeautifulSoup(value, 'html.parser')
@@ -61,13 +61,13 @@ def run():
                         for t in tokens:
                             t = porterStem.stem(t)
                             if t in frequencies.keys():
-                                if currURL in frequencies[t].keys():
-                                    frequencies[t][idCounter] += 1
+                                if str(idCounter) in frequencies[t].keys():
+                                    frequencies[t][str(idCounter)] += 1
                                 else:
-                                    frequencies[t][idCounter] = 1
+                                    frequencies[t][str(idCounter)] = 1
                             else:
                                 frequencies[t] = {}
-                                frequencies[t][idCounter] = 1
+                                frequencies[t][str(idCounter)] = 1
                 fileCount += 1
                 totalFileCount += 1
                 idCounter += 1
@@ -175,7 +175,7 @@ def writeToFile(index, writeCount):
             temp = {k: v}
             json.dump(temp, f)
             f.write('\n')
-            currBit += len(str(temp)) + 2 + 2 * len(v)  # 2*len(v) because the keys are automatically wrapped in " "
+            currBit += len(str(temp)) + 2  # + 2*len(v)    #2*len(v) because the keys are automatically wrapped in " "
 
         f.close()
     '''    
@@ -194,7 +194,7 @@ def mergeFiles(bitIndexes, totalFileCount):
     files = []
     bitIndex = {}
     finalIndex = {}
-    counter = 0
+
     for i in range(len(bitIndexes)):
         files.append('cs121-disk' + str(i) + '.json')
     try:
@@ -205,38 +205,29 @@ def mergeFiles(bitIndexes, totalFileCount):
         # merges all files into 1 file with duplicate tokens
         with open('cs121-disk-duplicates.json', 'w+') as c:
             currBit = 0
-            for f in openFiles:
-                for b in bitIndexes:
-                    for k, v in b.items():
+            for f, b in zip(openFiles, bitIndexes):
+                for k, v in b.items():
 
-                        if k in bitIndex.keys():
-                            bitIndex[k].append(currBit)
-                        else:
-                            bitIndex[k] = [v]
+                    if k in bitIndex.keys():
+                        bitIndex[k].append(currBit)
+                    else:
+                        bitIndex[k] = [currBit]
 
-                        f.seek(v)
-                        line = f.readline()
-                        # print(line)
-                        j = json.loads(line)
-                        # print('-')
-                        # print(j)
-                        # print('----------------------------------------')
-                        json.dump(j, c)
-                        c.write('\n')
-                        currBit += len(str(j)) + 2
+                    f.seek(v)
+                    line = f.readline()
+                    j = json.loads(line)
+                    json.dump(j, c)
+                    c.write('\n')
+                    t = currBit
+                    currBit += len(str(j)) + 2
 
-                        '''
-                        print(j)
-                        print(len(str(j)))
-                        '''
-                        # if (counter == 3):
-                        #    exit(0)
-
-                        counter += 1
             c.close()
 
         # write to final file with no duplicates and token dicts all merged
         # add tf-idf
+        with open('bitIndex.txt', 'w+') as bitw:
+            bitw.write(str(bitIndex))
+
         with open('cs121-disk-final.json', 'w+') as final:
             with open('cs121-disk-duplicates.json', 'r') as c:
                 currBit = 0
@@ -245,17 +236,23 @@ def mergeFiles(bitIndexes, totalFileCount):
                     if len(v) > 1:
                         c.seek(v[0])
                         t = json.loads(c.readline())
+                        tValue = list(t.values())[0]
                         for i in v[1:]:
                             c.seek(i)
-                            t.update(json.loads(c.readline()))
+                            temp = list(json.loads(c.readline()).values())[0]
+                            tValue.update(temp)
+
+                        t[list(t.keys())[0]] = tValue
                         json.dump(t, final)
-                        final.write('\n')
+
                     else:
                         c.seek(v[0])
+                        # print(k)
+                        # print(c.readline())
                         t = json.loads(c.readline())
                         json.dump(t, final)
-                        final.write('\n')
 
+                    final.write('\n')
                     currBit += len(str(t)) + 2
 
                 c.close()
