@@ -175,7 +175,7 @@ def writeToFile(index, writeCount):
             temp = {k: v}
             json.dump(temp, f)
             f.write('\n')
-            currBit += len(str(temp)) + 2  # + 2*len(v)    #2*len(v) because the keys are automatically wrapped in " "
+            currBit += len(str(temp)) + 2
 
         f.close()
     '''    
@@ -243,13 +243,13 @@ def mergeFiles(bitIndexes, totalFileCount):
                             tValue.update(temp)
 
                         t[list(t.keys())[0]] = tValue
+                        t = calculateTF_IDF(t, totalFileCount)
                         json.dump(t, final)
 
                     else:
                         c.seek(v[0])
-                        # print(k)
-                        # print(c.readline())
                         t = json.loads(c.readline())
+                        # t = calculateTF_IDF(t, totalFileCount)
                         json.dump(t, final)
 
                     final.write('\n')
@@ -257,10 +257,6 @@ def mergeFiles(bitIndexes, totalFileCount):
 
                 c.close()
             final.close()
-
-        # merge into 1 file with dupes and use mergeDictionaries to have duplicate
-        # tokens append list with bit location and merge tokens from those bit locations
-        # into a final file
 
     finally:
         for f in openFiles:
@@ -278,6 +274,15 @@ def mergeDictionaries(dicts):
             else:
                 mergedDict[k] = [v]
     return mergedDict
+
+
+def calculateTF_IDF(tValue, totalFileCount):
+    docuFreq = len(tValue.keys())
+    for k, v in tValue.items():
+        for doc, freq in v.items():
+            tf_idf = (1 + math.log(freq)) * math.log(totalFileCount / docuFreq)
+            tValue[k][doc] = tf_idf
+    return tValue
 
 
 '''
