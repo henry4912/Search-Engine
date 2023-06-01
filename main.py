@@ -76,12 +76,14 @@ def run():
         ind = writeToFile(frequencies, len(bitIndexes))
         bitIndexes.append(ind)
 
+    # if len(bitIndexes) > 1:
+    #    mergeFiles(bitIndexes, totalFileCount)
     mergeFiles(bitIndexes, totalFileCount)
+
+    reportWriteM1(idCounter, validJsonCounter, frequencies)
 
     del frequencies
     del fileCount
-
-    reportWriteM1(idCounter, validJsonCounter, frequencies)
 
     search(frequencies, docID)
 
@@ -173,8 +175,15 @@ def writeToFile(index, writeCount):
             temp = {k: v}
             json.dump(temp, f)
             f.write('\n')
-            currBit += len(str(temp)) + 2
+            currBit += len(str(temp)) + 2 + 2 * len(v)  # 2*len(v) because the keys are automatically wrapped in " "
+
         f.close()
+    '''    
+    it = iter(bitIndex.items())
+    for i in range(5):
+        print(next(it))
+    exit(0)
+    '''
 
     return bitIndex
 
@@ -185,7 +194,7 @@ def mergeFiles(bitIndexes, totalFileCount):
     files = []
     bitIndex = {}
     finalIndex = {}
-
+    counter = 0
     for i in range(len(bitIndexes)):
         files.append('cs121-disk' + str(i) + '.json')
     try:
@@ -206,10 +215,24 @@ def mergeFiles(bitIndexes, totalFileCount):
                             bitIndex[k] = [v]
 
                         f.seek(v)
-                        j = json.loads(f.readline())
+                        line = f.readline()
+                        # print(line)
+                        j = json.loads(line)
+                        # print('-')
+                        # print(j)
+                        # print('----------------------------------------')
                         json.dump(j, c)
                         c.write('\n')
                         currBit += len(str(j)) + 2
+
+                        '''
+                        print(j)
+                        print(len(str(j)))
+                        '''
+                        # if (counter == 3):
+                        #    exit(0)
+
+                        counter += 1
             c.close()
 
         # write to final file with no duplicates and token dicts all merged
