@@ -20,6 +20,7 @@ in that document as the value.
 
 Source for reading into directories: https://stackoverflow.com/questions/39508469/reading-all-the-file-content-in-directory
 Source for reading json into dictionary: https://www.geeksforgeeks.org/convert-json-to-dictionary-in-python/
+Source for finding all headers in html: https://stackoverflow.com/questions/45062534/how-to-grab-all-headers-from-a-website-using-beautifulsoup
 '''
 
 
@@ -56,18 +57,78 @@ def run():
 
                     if key == 'content':
                         soup = BeautifulSoup(value, 'html.parser')
+
+                        # finding headers
+                        header = soup.find_all(re.compile('^h[1-6]$'))
+                        headerText = []
+                        for h in header:
+                            if len(h) > 0:
+                                text = re.findall(r'>(.*)<', str(h))
+                                for t in text:
+                                    t = t.replace('\n', '')
+                                    while t.find('<') != -1:
+                                        start = t.find('<')
+                                        end = t.find('>', start)
+                                        t = t[:start] + t[end + 1:]
+                                    if len(t) > 0:
+                                        headerText.append(t)
+
+                        del header
+                        headerTokens = []
+                        for t in headerText:
+                            hTokens = tokenizer(t)
+                            for t2 in hTokens:
+                                if len(t2) > 1:
+                                    headerTokens.append(t2)
+                        del headerText
+
+                        # finding title text
+                        titleTokens = findTags(soup, 'title')
+                        # finding bold text
+                        boldTokens = findTags(soup, 'b')
+                        # finding strong (bold) text
+                        strongTokens = findTags(soup, 'strong')
+                        # finding italic text
+                        italicTokens = findTags(soup, 'i')
+                        # finding emphasized (italic) text
+                        emphasizedTokens = findTags(soup, 'em')
+                        # finding small text
+                        # smallTokens = findTags(soup, 'small')
+                        # assume that text not a part of these are body text
+
                         tokens = tokenizer(soup.text)
 
                         for t in tokens:
-                            t = porterStem.stem(t)
-                            if t in frequencies.keys():
-                                if str(idCounter) in frequencies[t].keys():
-                                    frequencies[t][str(idCounter)] += 1
+                            stemmedT = porterStem.stem(t)
+                            if stemmedT in frequencies.keys():
+                                if str(idCounter) in frequencies[stemmedT].keys():
+                                    frequencies[stemmedT][str(idCounter)][0] += 1
                                 else:
-                                    frequencies[t][str(idCounter)] = 1
+                                    frequencies[stemmedT][str(idCounter)] = [1, 0]
                             else:
-                                frequencies[t] = {}
-                                frequencies[t][str(idCounter)] = 1
+                                frequencies[stemmedT] = {}
+                                frequencies[stemmedT][str(idCounter)] = [1, 0]
+
+                            # title = 1, bold/strong = .8, italic/emph = 0.5, small???, body no extra points
+                            if t in titleTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 1
+                                titleTokens.remove(t)
+                            elif t in boldTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.8
+                                boldTokens.remove(t)
+                            elif t in strongTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.8
+                                strongTokens.remove(t)
+                            elif t in italicTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.5
+                                italicTokens.remove(t)
+                            elif t in emphasizedTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.5
+                                emphasizedTokens.remove(t)
+                            # elif t in smallTokens:
+                            #    frequencies[stemmedT][str(idCounter)][1].append('small')
+                            #    smallTokens.remove(t)
+
                 fileCount += 1
                 totalFileCount += 1
                 idCounter += 1
@@ -84,7 +145,7 @@ def run():
     #    mergeFiles(bitIndexes, totalFileCount)
     mergeFiles(bitIndexes, totalFileCount)
 
-    reportWriteM1(idCounter, validJsonCounter, frequencies)
+    lengthNormalization()
 
     del frequencies
     del fileCount
@@ -102,7 +163,28 @@ def tokenizer(contents):
     return tokens
 
 
-# https://stackoverflow.com/questions/36367527/centering-widgets-in-tkinter-frame-using-pack
+def findTags(soup, pattern):
+    tag = soup.find_all(pattern)
+    text = []
+    for i in tag:
+        if len(i) > 0:
+            i = str(i).replace('\n', '')
+            t = re.findall(r'>(.*)<', i)[0]
+            while t.find('<') != -1:
+                start = t.find('<')
+                end = t.find('>', start)
+                t = t[:start] + t[end + 1:]
+            if len(t) > 0:
+                text.append(t)
+    del tag
+    tokens = []
+    for t in text:
+        alphanumTokens = tokenizer(t)
+        for t2 in alphanumTokens:
+            if len(t2) > 1:
+                tokens.append(t2)
+    del text
+    return tokens
 
 
 def writeToFile(index, writeCount):
@@ -120,16 +202,11 @@ def writeToFile(index, writeCount):
             currBit += len(str(temp)) + 2
 
         f.close()
-    '''    
-    it = iter(bitIndex.items())
-    for i in range(5):
-        print(next(it))
-    exit(0)
-    '''
 
     return bitIndex
 
 
+# https://stackoverflow.com/questions/7945182/opening-multiple-an-unspecified-number-of-files-at-once-and-ensuring-they-are
 def mergeFiles(bitIndexes, totalFileCount):
     openFiles = []
     files = []
@@ -190,7 +267,7 @@ def mergeFiles(bitIndexes, totalFileCount):
                     else:
                         c.seek(v[0])
                         t = json.loads(c.readline())
-                        # t = calculateTF_IDF(t, totalFileCount)
+                        t = calculateTF_IDF(t, totalFileCount)
                         json.dump(t, final)
 
                     final.write('\n')
@@ -208,24 +285,64 @@ def mergeFiles(bitIndexes, totalFileCount):
         f.close()
 
 
-def mergeDictionaries(dicts):
-    mergedDict = {}
-    for d in dicts:
-        for k, v in d.items():
-            if k in mergedDict.keys():
-                mergedDict[k].append(v)
-            else:
-                mergedDict[k] = [v]
-    return mergedDict
-
-
-def calculateTF_IDF(tValue, totalFileCount):
-    docuFreq = len(tValue.keys())
-    for k, v in tValue.items():
+def calculateTF_IDF(t, totalFileCount):
+    docuFreq = len(list(t.values())[0])
+    for k, v in t.items():
         for doc, freq in v.items():
-            tf_idf = (1 + math.log(freq)) * math.log(totalFileCount / docuFreq)
-            tValue[k][doc] = tf_idf
-    return tValue
+            tf_idf = (1 + math.log(freq[0])) * math.log(totalFileCount / docuFreq)
+            t[k][doc][0] = tf_idf
+    return t
+
+
+def lengthNormalization():
+    normalizeBitLoc = {}
+    currBit = 0
+
+    with open('final-index.json', 'r') as ind:
+        index = json.load(ind)
+        ind.close()
+
+    with open('docID.json', 'r') as doc:
+        docID = json.load(doc)
+        doc.close()
+
+    with open('cs121-disk-final.json', 'r') as f:
+        doc_tfidf_sum = {}
+        for token, bit in index.items():
+            f.seek(bit)
+            j = json.loads(f.readline())
+            value = list(j.values())[0]
+            for k, v in value.items():
+                if k in doc_tfidf_sum.keys():
+                    doc_tfidf_sum[k] += math.pow(v[0], 2)
+                else:
+                    doc_tfidf_sum[k] = math.pow(v[0], 2)
+        f.close()
+
+    for k, v in doc_tfidf_sum.items():
+        doc_tfidf_sum[k] = math.sqrt(v)
+
+    normalizedBitIndex = {}
+    currBit = 0
+    with open('cs121-disk-final.json', 'r') as f:
+        with open('cs121-disk-final-normalized.json', 'w+') as n:
+            for token, bit in index.items():
+                normalizedBitIndex[token] = currBit
+                f.seek(bit)
+                j = json.loads(f.readline())
+                value = list(j.values())[0]
+                for k, v in value.items():
+                    value[k][0] = v[0] / doc_tfidf_sum[k]
+                j[token] = value
+                json.dump(j, n)
+                n.write('\n')
+                currBit = len(str(j)) + 2
+            n.close()
+        f.close()
+
+    with open('final-index-normalized.json', 'w+') as f:
+        json.dump(normalizedBitIndex, f)
+        f.close()
 
 
 '''
