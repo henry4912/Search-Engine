@@ -109,15 +109,18 @@ def run():
                                 frequencies[stemmedT] = {}
                                 frequencies[stemmedT][str(idCounter)] = [1, 0]
 
-                            # title = 1, bold/strong = .8, italic/emph = 0.5, small???, body no extra points
+                            # title = 1, headers = 0.85, bold/strong = .75, italic/emph = 0.5, small???, body no extra points
                             if t in titleTokens:
                                 frequencies[stemmedT][str(idCounter)][1] += 1
                                 titleTokens.remove(t)
+                            elif t in headerTokens:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.85
+                                headerTokens.remove(t)
                             elif t in boldTokens:
-                                frequencies[stemmedT][str(idCounter)][1] += 0.8
+                                frequencies[stemmedT][str(idCounter)][1] += 0.75
                                 boldTokens.remove(t)
                             elif t in strongTokens:
-                                frequencies[stemmedT][str(idCounter)][1] += 0.8
+                                frequencies[stemmedT][str(idCounter)][1] += 0.75
                                 strongTokens.remove(t)
                             elif t in italicTokens:
                                 frequencies[stemmedT][str(idCounter)][1] += 0.5
@@ -336,7 +339,7 @@ def lengthNormalization():
                 j[token] = value
                 json.dump(j, n)
                 n.write('\n')
-                currBit = len(str(j)) + 2
+                currBit += len(str(j)) + 2
             n.close()
         f.close()
 

@@ -17,7 +17,7 @@ import time
 
 # https://stackoverflow.com/questions/36367527/centering-widgets-in-tkinter-frame-using-pack
 def search():
-    index = getFinalIndex('final-index.json')
+    normalizedIndex = getFinalIndex('final-index-normalized.json')
     docID = getDocID('docID.json')
 
     window = Tk()
@@ -45,7 +45,7 @@ def search():
 
     def clicked():
         start = time.perf_counter()
-        results = findResults(searchBox.get().lower(), index, docID)
+        results = findResults(searchBox.get().lower(), normalizedIndex, docID)
         # reportWriteM2(searchBox.get(), results)
         finish = time.perf_counter() - start
         results += 'TIME: ' + str(finish)
@@ -58,7 +58,7 @@ def search():
     window.mainloop()
 
 
-def findResults(text, index, docID):
+def findResults(text, normalizedIndex, docID):
     sets = []
     results = ''
     porterStem = PorterStemmer()
@@ -74,6 +74,7 @@ def findResults(text, index, docID):
 
     tokens = [porterStem.stem(t) for t in tokens]
 
+    '''
     for token in tokens:
         if token not in index.keys():
             return 'No results found\n\n'
@@ -98,24 +99,62 @@ def findResults(text, index, docID):
     else:
         for url in intersection:
             results += str(url) + '\n\n'
+    '''
+
+    tf_idf_score = calculateTF_IDFSum(text, normalizedIndex)
+    html_score = calclateHTMLTagWeights(text, normalizedIndex)
+    cos_score = calculateCosine(text, normalizedIndex)
+
+    print(html_score)
+
+    score = {}
+    for i in tf_idf_score.keys():
+        score[i] = 0 * (tf_idf_score[i]) + 0 * (html_score[i]) + (cos_score[i])
+
+    if len(score) > 10:
+        sorted_score = dict(sorted(score.items(), key=lambda x: x[1])[:10])
+    else:
+        sorted_score = dict(sorted(score.items(), key=lambda x: x[1]))
+
+    results = ''
+    for k in sorted_score.keys():
+        results += docID[k] + '\n\n'
 
     return results
 
 
-def calculateTF_IDFSum(text, index):
+def calculateTF_IDFSum(text, normalizedIndex):
     score = {}
-    with open('cs121-disk-final.json', 'r') as f:
+    with open('cs121-disk-final-normalized.json', 'r') as f:
         for t in text:
-            if t in index.keys():
-                bit = index[t]
+            if t in normalizedIndex.keys():
+                bit = normalizedIndex[t]
                 f.seek(bit)
                 j = json.loads(f.readline())
                 value = list(j.values())[0]
                 for k, v in value.items():
                     if k in score.keys():
-                        score[k] += v
+                        score[k] += v[0]
                     else:
-                        score[k] = v
+                        score[k] = v[0]
+        f.close()
+    return score
+
+
+def calclateHTMLTagWeights(text, normalizedIndex):
+    score = {}
+    with open('cs121-disk-final-normalized.json', 'r') as f:
+        for t in text:
+            if t in normalizedIndex.keys():
+                bit = normalizedIndex[t]
+                f.seek(bit)
+                j = json.loads(f.readline())
+                value = list(j.values())[0]
+                for k, v in value.items():
+                    if k in score.keys():
+                        score[k] += v[1]
+                    else:
+                        score[k] = v[1]
         f.close()
     return score
 
@@ -161,9 +200,9 @@ def calculateCosine(text, normalizedIndex):
                 value = list(j.values())[0]
                 for k, v in value.items():
                     if k in score.keys():
-                        score[k] += v * queryFreq[t]
+                        score[k] += v[0] * queryFreq[t]
                     else:
-                        score[k] = v * queryFreq[t]
+                        score[k] = v[0] * queryFreq[t]
         f.close()
     return score
 
