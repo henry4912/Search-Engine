@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 import json
 import re
 from nltk.stem import PorterStemmer
-from tkinter import *
 import math
 
 '''
@@ -17,6 +16,8 @@ The indexer is a dictionary with the key being the token and the value being
 another dictionary that holds the document ID as the key and the frequency of the token
 in that document as the value.
 
+Finds which html tags the tokens were in and adds the corresponding weights 
+as the html tag weights calculated in query.py
 
 Source for reading into directories: https://stackoverflow.com/questions/39508469/reading-all-the-file-content-in-directory
 Source for reading json into dictionary: https://www.geeksforgeeks.org/convert-json-to-dictionary-in-python/
@@ -34,12 +35,12 @@ def run():
     validJsonCounter = 0  # valid json files
     frequencies = {}  # token frequencies
 
-    assignmentFolder = os.getcwd() + '/ANALYST'
+    assignmentFolder = os.getcwd() + '/DEV'
     for directories in os.listdir(assignmentFolder):
         subfolder = os.path.join(assignmentFolder, directories)
         for file in os.listdir(os.path.join(assignmentFolder, directories)):
 
-            if (fileCount == 1500):
+            if (fileCount == 1000):
                 fileCount = 0
                 ind = writeToFile(frequencies, len(bitIndexes))
                 bitIndexes.append(ind)
@@ -109,7 +110,7 @@ def run():
                                 frequencies[stemmedT] = {}
                                 frequencies[stemmedT][str(idCounter)] = [1, 0]
 
-                            # title = 1, headers = 0.85, bold/strong = .75, italic/emph = 0.5, small???, body no extra points
+                            # title = 1, headers = 0.85, bold/strong = .75, italic/emph = 0.5, other(small/body) = 0.1
                             if t in titleTokens:
                                 frequencies[stemmedT][str(idCounter)][1] += 1
                                 titleTokens.remove(t)
@@ -128,9 +129,8 @@ def run():
                             elif t in emphasizedTokens:
                                 frequencies[stemmedT][str(idCounter)][1] += 0.5
                                 emphasizedTokens.remove(t)
-                            # elif t in smallTokens:
-                            #    frequencies[stemmedT][str(idCounter)][1].append('small')
-                            #    smallTokens.remove(t)
+                            else:
+                                frequencies[stemmedT][str(idCounter)][1] += 0.1
 
                 fileCount += 1
                 totalFileCount += 1
@@ -144,11 +144,9 @@ def run():
         json.dump(docID, d)
         d.close()
 
-    # if len(bitIndexes) > 1:
-    #    mergeFiles(bitIndexes, totalFileCount)
     mergeFiles(bitIndexes, totalFileCount)
-
     lengthNormalization()
+    writeCacheWords()
 
     del frequencies
     del fileCount
@@ -164,6 +162,12 @@ Tokenizes the contents of the files into alphanumeric tokens
 def tokenizer(contents):
     tokens = re.findall(r'[a-z0-9]+', contents.lower())
     return tokens
+
+
+'''
+Finds all the html tags that mark the tokens as important
+Bold/strong, italics/emphasized, headers, title
+'''
 
 
 def findTags(soup, pattern):
@@ -190,6 +194,11 @@ def findTags(soup, pattern):
     return tokens
 
 
+'''
+Writes the current index into a file
+'''
+
+
 def writeToFile(index, writeCount):
     fileName = 'cs121-disk' + str(writeCount) + '.json'
     bitIndex = {}
@@ -209,6 +218,13 @@ def writeToFile(index, writeCount):
     return bitIndex
 
 
+'''
+Merges all files together to build a single file with the complete index.
+Writes all files into a single file first with duplicates and then
+creates the final file that merges those entries together.
+'''
+
+
 # https://stackoverflow.com/questions/7945182/opening-multiple-an-unspecified-number-of-files-at-once-and-ensuring-they-are
 def mergeFiles(bitIndexes, totalFileCount):
     openFiles = []
@@ -221,9 +237,10 @@ def mergeFiles(bitIndexes, totalFileCount):
     try:
         for f in files:
             openFiles.append(open(f, 'r'))
-        # merge = mergeDictionaries(bitIndexes) # dont know which file its in then
 
         # merges all files into 1 file with duplicate tokens
+        # makes the file pointer index hold list of pointers to
+        # the duplicate entries to merge later
         with open('cs121-disk-duplicates.json', 'w+') as c:
             currBit = 0
             for f, b in zip(openFiles, bitIndexes):
@@ -244,11 +261,7 @@ def mergeFiles(bitIndexes, totalFileCount):
 
             c.close()
 
-        # write to final file with no duplicates and token dicts all merged
-        # add tf-idf
-        with open('bitIndex.txt', 'w+') as bitw:
-            bitw.write(str(bitIndex))
-
+        # writes into final file by merging entries in duplicates
         with open('cs121-disk-final.json', 'w+') as final:
             with open('cs121-disk-duplicates.json', 'r') as c:
                 currBit = 0
@@ -288,6 +301,11 @@ def mergeFiles(bitIndexes, totalFileCount):
         f.close()
 
 
+'''
+Calculates the TF_IDF for all the documents under the token
+'''
+
+
 def calculateTF_IDF(t, totalFileCount):
     docuFreq = len(list(t.values())[0])
     for k, v in t.items():
@@ -295,6 +313,13 @@ def calculateTF_IDF(t, totalFileCount):
             tf_idf = (1 + math.log(freq[0])) * math.log(totalFileCount / docuFreq)
             t[k][doc][0] = tf_idf
     return t
+
+
+'''
+Normalizes the TF-IDF by going through the index file and adding
+all the TF-IDF scores squared, then square roots and divides
+each of the TF-IDF scores in final file.
+'''
 
 
 def lengthNormalization():
@@ -309,6 +334,7 @@ def lengthNormalization():
         docID = json.load(doc)
         doc.close()
 
+    # adds all the tf-idfs
     with open('cs121-disk-final.json', 'r') as f:
         doc_tfidf_sum = {}
         for token, bit in index.items():
@@ -325,6 +351,7 @@ def lengthNormalization():
     for k, v in doc_tfidf_sum.items():
         doc_tfidf_sum[k] = math.sqrt(v)
 
+    # normalizes the tf-idfs in the final file
     normalizedBitIndex = {}
     currBit = 0
     with open('cs121-disk-final.json', 'r') as f:
@@ -349,30 +376,28 @@ def lengthNormalization():
 
 
 '''
-Writes the report with the number of indexed documents, unique tokens,
-and size of the indexer
+Creates a dictionary with cache words: to, for, the, of, uci, computer
+Return the dictionary (used in query.py)
 '''
 
 
-def reportWriteM1(idCounter, validJsonCounter, frequencies):
-    f = open("reportM1.txt", "w+")
-    f.write('Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen\n')
-    f.write('Student IDs: 93547582, 27422353, 25602171, 56965805\n\n')
-    f.write('Report M1:\n\n')
+def writeCacheWords():
+    porterStem = PorterStemmer()
+    cacheWords = ['to', 'for', 'the', 'of', 'uci', 'computer']
+    cacheWords = [porterStem.stem(t) for t in cacheWords]
+    cache = {}
 
-    f.write('\nNumber of Indexed Documents: ' + str(validJsonCounter))
-    f.write('\nNumber of unique tokens: ' + str(len(frequencies)))
-    indexSize = sys.getsizeof(frequencies) / 1000
-    f.write("\nTotal size of index on disk: " + str(indexSize) + " KB")
-    f.close()
-
-
-def reportWriteM2(entry, results):
-    f = open('reportM2.txt', 'a')
-    f.write(entry + '\n')
-    f.write(results)
-    f.write('--------------------------------------------------------------\n')
-    f.close()
+    with open('cs121-disk-final-normalized.json', 'r') as n:
+        with open('final-index-normalized.json', 'r') as f:
+            index = json.load(f)
+            for word in cacheWords:
+                bit = index[word]
+                n.seek(bit)
+                j = json.loads(n.readline())
+                key = list(j.keys())[0]
+                val = list(j.values())[0]
+                cache[key] = val
+    return cache
 
 
 if __name__ == '__main__':
