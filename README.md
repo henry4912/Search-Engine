@@ -1,5 +1,6 @@
 # cs121m3, Yet another search engine.
 Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen
+
 Student IDs: 93547582, 27422353, 25602171, 56965805
 
 
