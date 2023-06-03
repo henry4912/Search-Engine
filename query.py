@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun  1 13:27:59 2023
-
-@author: Henry
-"""
+# Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen
+# Student IDs: 93547582, 27422353, 25602171, 56965805
 
 import json
 import re
@@ -14,11 +10,16 @@ import main
 import math
 import time
 
+'''
+Creates local GUI using TKinter and prompts user for query
+'''
+
 
 # https://stackoverflow.com/questions/36367527/centering-widgets-in-tkinter-frame-using-pack
 def search():
     normalizedIndex = getFinalIndex('final-index-normalized.json')
     docID = getDocID('docID.json')
+    cache = getCacheWords()
 
     window = Tk()
     window.title('Yet Another Search Engine')
@@ -35,18 +36,9 @@ def search():
     searchBox = Entry(frame2, width=30)
     searchBox.pack(side='left')
 
-    '''
-    f = open('reportM2.txt', 'w+')
-    f.write('Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen\n')
-    f.write('Student IDs: 93547582, 27422353, 25602171, 56965805\n\n')
-    f.write('Report M2:\n\n')
-    f.close()
-    '''
-
     def clicked():
         start = time.perf_counter()
-        results = findResults(searchBox.get().lower(), normalizedIndex, docID)
-        # reportWriteM2(searchBox.get(), results)
+        results = findResults(searchBox.get().lower(), normalizedIndex, docID, cache)
         finish = time.perf_counter() - start
         results += 'TIME: ' + str(finish)
         labelResults.configure(text=results)
@@ -58,7 +50,13 @@ def search():
     window.mainloop()
 
 
-def findResults(text, normalizedIndex, docID):
+'''
+Processes the query and calls calculation methods for tf-idf, cos, and html tag
+weights to get the score for each document that can be shown to the user
+'''
+
+
+def findResults(text, normalizedIndex, docID, cache):
     sets = []
     results = ''
     porterStem = PorterStemmer()
@@ -66,7 +64,7 @@ def findResults(text, normalizedIndex, docID):
     if len(text) == 0:
         return 'No results found\n\n'
 
-    tokens = text.split()
+    tokens = tokenizer(text)
 
     tokensNoStopwords = [t for t in tokens if t not in stopwords.words('english')]
     if len(tokensNoStopwords) != 0:
@@ -74,47 +72,30 @@ def findResults(text, normalizedIndex, docID):
 
     tokens = [porterStem.stem(t) for t in tokens]
 
-    '''
-    for token in tokens:
-        if token not in index.keys():
-            return 'No results found\n\n'
+    queryFreq = {}
+    for t in tokens:
+        if t in queryFreq.keys():
+            queryFreq[t] += 1
         else:
-            bitLocation = index[token]
-            with open('cs121-disk-final.json', 'r') as f:
-                f.seek(bitLocation)
-                entry = json.loads(f.readline())
-                f.close()
-            urlFreq = next(iter(entry.values()))
-            urls = []
-            for urlID in urlFreq.keys():
-                urls.append(docID[urlID])
-            sets.append(set(urls))
+            queryFreq[t] = 1
 
-    intersection = list(set.intersection(*sets))
-    if len(intersection) == 0:
-        return 'No results found\n\n'
-    elif len(intersection) > 10:
-        for url in intersection[:10]:
-            results += str(url) + '\n\n'
-    else:
-        for url in intersection:
-            results += str(url) + '\n\n'
-    '''
+    urls = getURLsToRank(queryFreq, normalizedIndex, 10, cache)
 
-    tf_idf_score = calculateTF_IDFSum(text, normalizedIndex)
-    html_score = calclateHTMLTagWeights(text, normalizedIndex)
-    cos_score = calculateCosine(text, normalizedIndex)
-
-    print(html_score)
+    tf_idf_score = calculateTF_IDFSum(queryFreq, normalizedIndex, urls, cache)
+    html_score = calclateHTMLTagWeights(queryFreq, normalizedIndex, urls, cache)
+    cos_score = calculateCosine(queryFreq, normalizedIndex, urls, cache)
 
     score = {}
     for i in tf_idf_score.keys():
-        score[i] = 0 * (tf_idf_score[i]) + 0 * (html_score[i]) + (cos_score[i])
+        score[i] = 0.4 * (tf_idf_score[i]) + 0.25 * (html_score[i]) + 0.35 * (cos_score[i])
+
+    if len(score) == 0:
+        return 'No results found\n\n'
 
     if len(score) > 10:
-        sorted_score = dict(sorted(score.items(), key=lambda x: x[1])[:10])
+        sorted_score = dict(sorted(score.items(), key=lambda x: x[1], reverse=True)[:10])
     else:
-        sorted_score = dict(sorted(score.items(), key=lambda x: x[1]))
+        sorted_score = dict(sorted(score.items(), key=lambda x: x[1], reverse=True))
 
     results = ''
     for k in sorted_score.keys():
@@ -123,50 +104,130 @@ def findResults(text, normalizedIndex, docID):
     return results
 
 
-def calculateTF_IDFSum(text, normalizedIndex):
+'''
+Retrieves the valid documents to calculate scoring.
+This is done by finding documents that have the most terms out of the query
+'''
+
+
+# https://stackoverflow.com/questions/26871866/print-highest-value-in-dict-with-key
+def getURLsToRank(queryFreq, normalizedIndex, k, cache):
+    tokens = {}
+    resultDict = {}
+    with open('cs121-disk-final-normalized.json', 'r') as f:
+        for t in queryFreq.keys():
+            bit = normalizedIndex[t]
+            f.seek(bit)
+            j = json.loads(f.readline())
+            docids = list(j.values())[0].keys()
+            for did in docids:
+                if did in resultDict.keys():
+                    resultDict[did] += 1
+                else:
+                    resultDict[did] = 1
+
+    if len(resultDict) > 10:
+        resultDict = dict(sorted(resultDict.items(), key=lambda x: x[1], reverse=True)[:100])
+    else:
+        resultDict = dict(sorted(resultDict.items(), key=lambda x: x[1], reverse=True))
+
+    urls = []
+    for key in resultDict.keys():
+        urls.append(key)
+
+    return urls
+
+
+'''
+Calculates the tf-idf scoring by adding all the tf-idf values
+'''
+
+
+def calculateTF_IDFSum(queryFreq, normalizedIndex, urls, cache):
     score = {}
     with open('cs121-disk-final-normalized.json', 'r') as f:
-        for t in text:
-            if t in normalizedIndex.keys():
+        for t in queryFreq.keys():
+            if t in cache.keys():
+                value = cache[t]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][0] * weight
+                    else:
+                        score[u] = value[u][0] * weight
+
+            elif t in normalizedIndex.keys():
                 bit = normalizedIndex[t]
                 f.seek(bit)
                 j = json.loads(f.readline())
                 value = list(j.values())[0]
-                for k, v in value.items():
-                    if k in score.keys():
-                        score[k] += v[0]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][0] * weight
                     else:
-                        score[k] = v[0]
+                        score[u] = value[u][0] * weight
         f.close()
     return score
 
 
-def calclateHTMLTagWeights(text, normalizedIndex):
+'''
+Calculates the html tag weights by adding the weights for which html
+tag the tokens were in.
+'''
+
+
+def calclateHTMLTagWeights(queryFreq, normalizedIndex, urls, cache):
     score = {}
     with open('cs121-disk-final-normalized.json', 'r') as f:
-        for t in text:
-            if t in normalizedIndex.keys():
+        for t in queryFreq.keys():
+            if t in cache.keys():
+                value = cache[t]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][1] * weight
+                    else:
+                        score[u] = value[u][1] * weight
+
+            elif t in normalizedIndex.keys():
                 bit = normalizedIndex[t]
                 f.seek(bit)
                 j = json.loads(f.readline())
                 value = list(j.values())[0]
-                for k, v in value.items():
-                    if k in score.keys():
-                        score[k] += v[1]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][1] * weight
                     else:
-                        score[k] = v[1]
+                        score[u] = value[u][1] * weight
         f.close()
     return score
 
 
-def calculateCosine(text, normalizedIndex):
-    queryFreq = {}
-    for t in text:
-        if t in queryFreq.keys():
-            queryFreq[t] += 1
-        else:
-            queryFreq[t] = 1
+'''
+Calculates the cosine similarity between the query and relevant documents
+using tf-idf scoring
+'''
 
+
+def calculateCosine(queryFreq, normalizedIndex, urls, cache):
     with open('cs121-disk-final-normalized.json', 'r') as f:
         ifAllFreqOne = True
         for k, v in queryFreq.items():
@@ -180,31 +241,63 @@ def calculateCosine(text, normalizedIndex):
                 tf_idf = (1 + math.log(v)) * math.log(len(normalizedIndex) / len(value))
             else:
                 tf_idf = 1 + math.log(v)
-
             queryFreq[k] = tf_idf
 
-        if ifAllFreqOne == False:
-            normalize = 0
-            for k, v in queryFreq.items():
-                normalize += math.pow(v, 2)
-            normalize = math.sqrt(normalize)
-            for k, v in queryFreq.items():
-                queryFreq[k] = v / normalize
+        normalize = 0
+        for k, v in queryFreq.items():
+            normalize += math.pow(v, 2)
+        normalize = math.sqrt(normalize)
+        for k, v in queryFreq.items():
+            queryFreq[k] = v / normalize
 
         score = {}
-        for t in text:
-            if t in normalizedIndex.keys():
+        for t in queryFreq.keys():
+            if t in cache.keys():
+                value = cache[t]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][0] * queryFreq[t] * weight
+                    else:
+                        score[u] = value[u][0] * queryFreq[t] * weight
+
+            elif t in normalizedIndex.keys():
                 bit = normalizedIndex[t]
                 f.seek(bit)
                 j = json.loads(f.readline())
                 value = list(j.values())[0]
-                for k, v in value.items():
-                    if k in score.keys():
-                        score[k] += v[0] * queryFreq[t]
+                weight = 1
+                if queryFreq[t] > 1:
+                    weight = queryFreq[t]
+                for u in urls:
+                    if u not in value.keys():
+                        break
+                    if u in score.keys():
+                        score[u] += value[u][0] * queryFreq[t] * weight
                     else:
-                        score[k] = v[0] * queryFreq[t]
+                        score[u] = value[u][0] * queryFreq[t] * weight
+
         f.close()
     return score
+
+
+'''
+Tokenizes the contents of the files into alphanumeric tokens
+'''
+
+
+def tokenizer(contents):
+    tokens = re.findall(r'[a-z0-9]+', contents.lower())
+    return tokens
+
+
+'''
+Retrieves the pointer index for the file with the complete index
+'''
 
 
 def getFinalIndex(file):
@@ -214,11 +307,25 @@ def getFinalIndex(file):
     return index
 
 
+'''
+Retrieves the document IDs for the index
+'''
+
+
 def getDocID(file):
     with open(file, 'r') as d:
         docID = json.load(d)
         d.close()
     return docID
+
+
+'''
+Retrieves cache words by calling function in main.py
+'''
+
+
+def getCacheWords():
+    return main.writeCacheWords()
 
 
 if __name__ == '__main__':
