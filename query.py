@@ -40,7 +40,7 @@ def search():
         start = time.perf_counter()
         results = findResults(searchBox.get().lower(), normalizedIndex, docID, cache)
         finish = time.perf_counter() - start
-        results += 'TIME: ' + str(finish)
+        results += 'Time: ' + str(1000 * finish) + ' ms'
         labelResults.configure(text=results)
 
     search = Button(frame2, text='Search', command=clicked)
@@ -127,7 +127,7 @@ def getURLsToRank(queryFreq, normalizedIndex, k, cache):
                     resultDict[did] = 1
 
     if len(resultDict) > 10:
-        resultDict = dict(sorted(resultDict.items(), key=lambda x: x[1], reverse=True)[:100])
+        resultDict = dict(sorted(resultDict.items(), key=lambda x: x[1], reverse=True)[:750])
     else:
         resultDict = dict(sorted(resultDict.items(), key=lambda x: x[1], reverse=True))
 
