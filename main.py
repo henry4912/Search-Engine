@@ -376,14 +376,14 @@ def lengthNormalization():
 
 
 '''
-Creates a dictionary with cache words: to, for, the, of, uci, computer
+Creates a dictionary with cache words: to, for, the, uci, computer, or, be, and, software, science
 Return the dictionary (used in query.py)
 '''
 
 
 def writeCacheWords():
     porterStem = PorterStemmer()
-    cacheWords = ['to', 'for', 'the', 'of', 'uci', 'computer']
+    cacheWords = ['to', 'for', 'the', 'uci', 'computer', 'or', 'be', 'and', 'software', 'science']
     cacheWords = [porterStem.stem(t) for t in cacheWords]
     cache = {}
 
