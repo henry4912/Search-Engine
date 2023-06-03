@@ -87,7 +87,7 @@ def findResults(text, normalizedIndex, docID, cache):
 
     score = {}
     for i in tf_idf_score.keys():
-        score[i] = 0.4 * (tf_idf_score[i]) + 0.25 * (html_score[i]) + 0.35 * (cos_score[i])
+        score[i] = 0.35 * (tf_idf_score[i]) + 0.25 * (html_score[i]) + 0.4 * (cos_score[i])
 
     if len(score) == 0:
         return 'No results found\n\n'
