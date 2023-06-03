@@ -1,5 +1,8 @@
-# cs121m1
-Yet another search engine.
+# cs121m3, Yet another search engine.
+# made by:
+Student Names: Derrick Jones, Sabrina Yang, Henry Ha, Christine Nguyen
+Student IDs: 93547582, 27422353, 25602171, 56965805
+
 
 Steps to using this search engine:
 
